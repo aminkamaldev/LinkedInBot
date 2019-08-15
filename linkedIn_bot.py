@@ -138,6 +138,8 @@ class Bot:
         else:
             logger.info("Tentative de connection resussie")
         
+        #TODO Lancement de la recuperation de la visibilite de mon profile
+        driver = self.get_my_dashboard(driver,'/feed/')
         driver = self.grow_visibility(driver,'/mynetwork/')
         driver.close()
         
@@ -180,6 +182,22 @@ class Bot:
             logger.info("Url Visited %s"%url)
             time.sleep(TEMPORISATION)
         logger.info("Grow visibiliy ended")
+        return driver
+        
+    def get_my_dashboard(self,driver,suffixe_url):
+        """
+        Recuperation des informations sur mon profile
+        Combien de personnes ont consulté mon profile
+        Combien d'apparition dans les resultats de recherche
+        Combien on vue mes articles
+        """
+        print("Recuperation des stats")
+        logger.info("get my profile data")
+        driver.get(self.base_url+suffixe_url)
+        soup= BeautifulSoup(driver.page_source,"lxml")
+        visited_time=soup.select('span.feed-identity-module__stat.link-without-visited-state')
+        logger.info("nombre de fois ou mon profile a ete visite %s"%visited_time[0].text.strip())
+        logger.info("nombre de relations %s"%visited_time[1].text.strip())
         return driver
     
                 
