@@ -39,6 +39,8 @@ class Bot:
         self.visited_file='visited.txt'
         self.bufferSize = 64 * 1024
         self.n_scroll_down = n_scroll_down
+        self.time_visited = 0
+        self.relations = 0
         self.initialisation_logger()
         self.check_configfile()
         self.check_visited_users_file()
@@ -152,7 +154,7 @@ class Bot:
         n=1
         
         while n < self.n_scroll_down:
-            logger.info("Scroll Down %d" % n)
+            
             driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
             time.sleep(PAUSE_TO_SCROLL)
             nouveau_scroll = driver.execute_script("return document.body.scrollHeight")
@@ -160,6 +162,7 @@ class Bot:
                 break
             dernier_scroll = nouveau_scroll
             n +=1
+        logger.info("Scroll Down %d time" % n)
         return driver
     
     def grow_visibility(self,driver,suffixe_url):
@@ -172,14 +175,20 @@ class Bot:
         soup = BeautifulSoup(driver.page_source,"lxml")
         #recommends = soup.findAll('a',{'class':'discover-person-card__link ember-view'})
         recommends = soup.select('a.discover-person-card__link.ember-view')
-        print(recommends)
+        #print(recommends)
+        logger.info("%d profile to visit "%len(recommends))
         print(len(recommends))
         logger.info("Profile a explorer %d"%len(recommends))
         for recommend in recommends:
             url = self.base_url + recommend['href']
-            driver.get(url)
-            print(recommend)
-            logger.info("Url Visited %s"%url)
+            username = recommend.select('span.discover-person-card__name.t-16.t-black.t-bold')[0].text.strip()
+            fonction = recommend.select('span.discover-person-card__occupation.t-14.t-black--light.t-normal')[0].text.strip()
+            if not username in open(self.visited_file).read():
+                driver.get(url)
+                logger.info("Profile visited %s"%username)
+            else :
+                print(username+" already visited")
+            self.write_in_resultat_file(username+" : "+fonction+" -> "+url)
             time.sleep(TEMPORISATION)
         logger.info("Grow visibiliy ended")
         return driver
@@ -196,13 +205,27 @@ class Bot:
         driver.get(self.base_url+suffixe_url)
         soup= BeautifulSoup(driver.page_source,"lxml")
         visited_time=soup.select('span.feed-identity-module__stat.link-without-visited-state')
+        self.time_visited = int(visited_time[0].text.strip())
+        self.relations=int(visited_time[1].text.strip())
+        print(self)
         logger.info("nombre de fois ou mon profile a ete visite %s"%visited_time[0].text.strip())
         logger.info("nombre de relations %s"%visited_time[1].text.strip())
         return driver
+
+    def write_in_resultat_file(self,res):
+        f = open(self.visited_file,"a+")
+        if type(res) is str:
+            f.write(res+"\n")
+        if type(res) is bytes:
+            f.write(res.decode("utf-8")+"\n")
+        f.close()
     
+    def bot_stats(self):
+        num_lines = sum(1 for line in open(self.visited_file))
+        logger.info("Bot a visiter %d profiles a ce jour "%num_lines)
                 
     def __str__(self):
-        return "baseurl:{}| config file:{}| password:{}| linkedin_id:{}| linkedin_pass:{}|  Scroll_Down:{}".format(self.base_url,self.config,self.password,self.linkedin_id,self.linkedin_pass,self.n_scroll_down)
+        return "baseurl:{} | config file:{} | Account{} | Scroll_Down:{} | Profile visited {} times, and you have {} relations".format(self.base_url,self.config,self.linkedin_id,self.n_scroll_down, self.time_visited,self.relations)
 
 
 ##MAIN
@@ -217,3 +240,4 @@ if __name__ == "__main__" :
     bot = Bot(args.config,args.password,args.scrolldown)
     #print(bot)
     bot.open_browser()
+    bot.bot_stats()
