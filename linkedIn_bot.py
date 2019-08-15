@@ -2,6 +2,8 @@
 import os, random, sys, time
 import argparse
 
+import schedule
+
 from urllib.parse import urlparse
 
 from selenium import webdriver
@@ -140,9 +142,9 @@ class Bot:
         else:
             logger.info("Tentative de connection resussie")
         
-        #TODO Lancement de la recuperation de la visibilite de mon profile
         driver = self.get_my_dashboard(driver,'/feed/')
         driver = self.grow_visibility(driver,'/mynetwork/')
+        self.bot_stats()
         driver.close()
         
     def scroll_down_n_time(self,driver):
@@ -223,6 +225,9 @@ class Bot:
     def bot_stats(self):
         num_lines = sum(1 for line in open(self.visited_file))
         logger.info("Bot a visiter %d profiles a ce jour "%num_lines)
+        
+    def schedule_bot(self):
+        schedule.every().day.at("21:00").do(self.open_browser)
                 
     def __str__(self):
         return "baseurl:{} | config file:{} | Account{} | Scroll_Down:{} | Profile visited {} times, and you have {} relations".format(self.base_url,self.config,self.linkedin_id,self.n_scroll_down, self.time_visited,self.relations)
@@ -238,6 +243,16 @@ if __name__ == "__main__" :
     args = parser.parse_args()
     
     bot = Bot(args.config,args.password,args.scrolldown)
-    #print(bot)
-    bot.open_browser()
-    bot.bot_stats()
+    #bot.open_browser()
+    #bot.bot_stats()
+    
+    print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
+    bot.schedule_bot()
+    try:
+        # This is here to simulate application activity (which keeps the main thread alive).
+        while True:
+            schedule.run_pending()
+            time.sleep(2)
+    except (KeyboardInterrupt, SystemExit):
+        # Not strictly necessary if daemonic mode is enabled but should be done if possible
+        schedule.cancel_job(bot.open_browser)
